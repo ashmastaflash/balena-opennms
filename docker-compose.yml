@@ -1,0 +1,58 @@
+version: '2'
+
+services:
+  database:
+    image: postgres:12
+    environment:
+      - TZ=America/Los_Angeles
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    expose:
+      - "5432"
+    volumes:
+      - onms-var:/var/lib/postgresql/data
+      - onms-opt:/opt/opennms/share/rrd
+  horizon:
+    image: opennms/horizon:25.2.1
+    environment:
+      - TZ=America/Los_Angeles
+      - POSTGRES_HOST=database
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - OPENNMS_DBNAME=opennms
+      - OPENNMS_DBUSER=opennms
+      - OPENNMS_DBPASS=opennms
+    volumes:
+      - onms-opt:/opt/opennms/share/rrd
+      - onms-var:/var/lib/postgresql/data
+      - onms-overlay:/opt/opennms-overlayf
+    links:
+      - database
+      - minion
+    command: ["-s"]
+    expose:
+      - "8980"
+      - "8101"
+      - "61616"
+    ports:
+      - "8980:8980"
+  minion:
+    image: opennms/minion:25.2.1
+    environment:
+      - TZ=America/Los_Angeles
+      - MINION_ID=my-minion
+      - MINION_LOCATION=my-location
+      - OPENNMS_BROKER_URL=failover:tcp://horizon:61616
+      - OPENNMS_HTTP_URL=http://horizon:8980/opennms
+    command: ["-f"]
+    links:
+      - horizon
+      - database
+    expose:
+      - "8201"
+      - "1162"
+volumes:
+    onms-opt:
+    onms-var:
+    onms-overlay:
